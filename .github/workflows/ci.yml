@@ -28,10 +28,13 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: 3.2
+          bundler-cache: true  # 添加缓存加速
 
       # 3. 安装 Fastlane
       - name: Install Fastlane
-        run: gem install fastlane
+        run: |
+          gem install fastlane
+          bundle install  # 如果有 Gemfile
 
       # 4. 启动 SSH Agent 并添加 key
       - name: Setup SSH for match
@@ -39,18 +42,55 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.MATCH_GIT_SSH_KEY }}
 
-      # 5. 解锁 Keychain
-      - name: Unlock Keychain
+      # 5. 设置临时钥匙串
+      - name: Setup Keychain
         run: |
-          security list-keychains -s ~/Library/Keychains/login.keychain-db
-          security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
-          security set-keychain-settings -t 3600 -l ~/Library/Keychains/login.keychain-db
-          security default-keychain -s ~/Library/Keychains/login.keychain-db
-
+          # 创建临时钥匙串
+          security create-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ios-build.keychain
+          security default-keychain -s ios-build.keychain
+          security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ios-build.keychain
+          security set-keychain-settings -t 3600 -l ios-build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ios-build.keychain
+          
+          # 验证钥匙串设置
+          echo "=== Current keychains ==="
+          security list-keychains
+          echo "=== Default keychain ==="
+          security default-keychain
+          
       # 6. 拉取证书（development）
       - name: Set up certificates
-        run: fastlane match development --git_url git@github.com:cxu15757-gif/iosCITestCers.git --readonly --keychain_password "${{ secrets.KEYCHAIN_PASSWORD }}"
+        run: |
+          fastlane match development \
+            --git_url git@github.com:cxu15757-gif/iosCITestCers.git \
+            --readonly \
+            --keychain_name "ios-build.keychain" \
+            --keychain_password "${{ secrets.KEYCHAIN_PASSWORD }}" \
+            --verbose
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          
+      # 7. 验证证书
+      - name: Verify certificates
+        run: |
+          echo "=== Available identities ==="
+          security find-identity -v -p codesigning
+          echo "=== Provisioning profiles ==="
+          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
+          echo "=== Profile details ==="
+          # 显示描述文件详情
+          for profile in ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision; do
+            echo "Profile: $(basename "$profile")"
+            security cms -D -i "$profile" | grep -A 1 -E "Name|UUID|TeamIdentifier|AppIDName"
+            echo "---"
+          done
 
-      # 7. 执行本地 lane
+      # 8. 执行打包 lane
       - name: Run local lane
         run: fastlane local
+        env:
+          # 确保环境变量传递到 Fastlane
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          FASTLANE_TEAM_ID: ${{ secrets.FASTLANE_TEAM_ID }}
+          FASTLANE_USER: ${{ secrets.FASTLANE_USER }}

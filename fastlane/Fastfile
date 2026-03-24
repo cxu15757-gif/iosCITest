@@ -28,14 +28,34 @@ lane :local do
   desc "🚀 本地打包，不上传 TestFlight / App Store"
   UI.message("🚀 开始本地打包")
 
+ # CI 环境验证证书（确保证书已正确安装）
+  if ENV["CI"] == "true"
+    UI.message("🔍 CI 环境验证...")
+    
+    # 确保使用正确的钥匙串
+    keychain_name = "ios-build.keychain"
+    keychain_password = ENV["KEYCHAIN_PASSWORD"]
+    
+    # 解锁钥匙串
+    sh("security unlock-keychain -p #{keychain_password} #{keychain_name}")
+    
+    # 验证证书
+    UI.message("📜 可用的签名证书:")
+    sh("security find-identity -v -p codesigning")
+    
+    # 验证描述文件
+    UI.message("📄 已安装的描述文件:")
+    sh("ls -la ~/Library/MobileDevice/Provisioning\\ Profiles/")
+  end
+
   # 拉取开发证书（只读，不修改远程 repo）
-  match(
-    type: "development",
-    readonly: true,
-    git_url: "git@github.com:cxu15757-gif/iosCITestCers.git",
-    keychain_name: "login.keychain-db",     
-    keychain_password: ENV["MATCH_KEYCHAIN_PASSWORD"],    # Keychain 密码
-  )
+ # match(
+  #  type: "development",
+   # readonly: true,
+   # git_url: "git@github.com:cxu15757-gif/iosCITestCers.git",
+   # keychain_name: "login.keychain-db",     
+   # keychain_password: ENV["MATCH_KEYCHAIN_PASSWORD"],    # Keychain 密码
+ # )
   # gym 打包 IPA
   gym(
     scheme: "CITestProject",                    # 你的 Scheme
