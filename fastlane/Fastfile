@@ -48,7 +48,7 @@ lane :local do
     export_method: "development",
     export_options: {
       provisioningProfiles: {
-        "kuban.io.TestAchive" => "match Development kuban.io.TestAchive"
+        "com.kb.ci.TestApp" => "match Development com.kb.ci.TestApp"
       }
     },
     xcargs: "CODE_SIGN_STYLE=Manual"          # ← 强制 Manual Signing 避免 CI 卡住
@@ -80,7 +80,7 @@ lane :local_dev do
     export_method: "development",
     export_options: {
       provisioningProfiles: {
-        "kuban.io.TestAchive" => "match Development kuban.io.TestAchive"
+        "com.kb.ci.TestApp" => "match Development com.kb.ci.TestApp"
       }
     },
     xcargs: "CODE_SIGN_STYLE=Manual"          # ← 强制 Manual Signing 避免 CI 卡住
