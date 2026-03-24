@@ -1,0 +1,93 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Push a new beta build to TestFlight"
+  lane :beta do
+    increment_build_number(xcodeproj: "CITestProject.xcodeproj")
+    build_app(scheme: "CITestProject")
+    upload_to_testflight
+  end
+   
+
+lane :local do
+  desc "🚀 本地打包，不上传 TestFlight / App Store"
+  UI.message("🚀 开始本地打包")
+
+  # 拉取开发证书（只读，不修改远程 repo）
+  match(
+    type: "development",
+    readonly: true,
+    git_url: "git@github.com:cxu15757-gif/iosCITestCers.git",
+    keychain_name: "login.keychain-db",     
+    keychain_password: ENV["MATCH_KEYCHAIN_PASSWORD"],    # Keychain 密码
+  )
+  # gym 打包 IPA
+  gym(
+    scheme: "CITestProject",                    # 你的 Scheme
+    project: "CITestProject.xcodeproj",         # 如果是 workspace，用 workspace: "xxx.xcworkspace"
+    clean: true,
+    configuration: "Release",
+    output_directory: "./build",
+    output_name: "CITestProject.ipa",
+    silent: false,
+    export_method: "development",
+    export_options: {
+      provisioningProfiles: {
+        "kuban.io.TestAchive" => "match Development kuban.io.TestAchive"
+      }
+    },
+    xcargs: "CODE_SIGN_STYLE=Manual"          # ← 强制 Manual Signing 避免 CI 卡住
+  )
+
+  UI.success("✅ 本地打包完成，IPA 已生成在 ./build/CITestProject.ipa")
+end
+
+lane :local_dev do
+  desc "🚀 本地打包，不上传 TestFlight / App Store"
+  UI.message("🚀 开始本地打包")
+
+  # 拉取开发证书（只读，不修改远程 repo）
+  match(
+    type: "development",
+    readonly: true,
+    git_url: "git@github-cxu:cxu15757-gif/iosCITestCers.git"
+  )
+
+  # gym 打包 IPA
+  gym(
+    scheme: "CITestProject",                    # 你的 Scheme
+    project: "CITestProject.xcodeproj",         # 如果是 workspace，用 workspace: "xxx.xcworkspace"
+    clean: true,
+    configuration: "Release",
+    output_directory: "./build",
+    output_name: "CITestProject.ipa",
+    silent: false,
+    export_method: "development",
+    export_options: {
+      provisioningProfiles: {
+        "kuban.io.TestAchive" => "match Development kuban.io.TestAchive"
+      }
+    },
+    xcargs: "CODE_SIGN_STYLE=Manual"          # ← 强制 Manual Signing 避免 CI 卡住
+  )
+
+  UI.success("✅ 本地打包完成，IPA 已生成在 ./build/CITestProject.ipa")
+end
+
+
+end
